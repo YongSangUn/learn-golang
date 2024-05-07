@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"time"
 )
 
 /*
@@ -40,6 +41,7 @@ G(is the specific Goroutine):
 
 func main() {
 	goroutineHello()
+	safeGoroutine()
 }
 func init() {
 	// The default value is the number of CPU cores on the machine.
@@ -50,10 +52,28 @@ func sayHello() {
 	fmt.Println("hello")
 }
 func goroutineHello() {
+	// Use the 'go' keyword to create a goroutine.
+	// func sayHello() will be executed asynchronously in a new goroutine.
 	go sayHello()
 
 	// the function will continue to execute without waiting for sayHello() to complete.
 	// therefore, we need `time.Sleep` to pause the main goroutine so that the print statement in `sayHello` has a chance to be executed.
-	// time.Sleep(1 * time.Second)
 	fmt.Println("Main process")
+	time.Sleep(1 * time.Second) // do not use sleep to wait for a goroutine to finish.
+}
+
+func worker(done chan bool) {
+	fmt.Println("worker starting...")
+	time.Sleep(time.Second)
+	fmt.Println("done.")
+	done <- true
+}
+
+// Goroutines should have clear start and end points, and avoid creating goroutines without termination conditions.
+func safeGoroutine() {
+	// a channel can be understood as a simple message queue, use "<-" to read and write queue data.
+	done := make(chan bool, 1)
+	go worker(done)
+	// wait for the goroutine to finish
+	<-done
 }
