@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"time"
@@ -42,6 +43,9 @@ G(is the specific Goroutine):
 func main() {
 	goroutineHello()
 	safeGoroutine()
+	anonymousFuncGoroutine()
+	useChanStopGoroutine()
+	useContentStopGoroutine()
 }
 func init() {
 	// The default value is the number of CPU cores on the machine.
@@ -72,8 +76,65 @@ func worker(done chan bool) {
 // Goroutines should have clear start and end points, and avoid creating goroutines without termination conditions.
 func safeGoroutine() {
 	// a channel can be understood as a simple message queue, use "<-" to read and write queue data.
-	done := make(chan bool, 1)
+	done := make(chan bool, 1) // as done signal
 	go worker(done)
 	// wait for the goroutine to finish
 	<-done
+}
+
+func anonymousFuncGoroutine() {
+	done := make(chan bool, 1)
+
+	go func() {
+		time.Sleep(2 * time.Second)
+		fmt.Println("task done.")
+
+		done <- true
+	}()
+
+	// The main goroutine waits for the done signal.
+	<-done
+
+	fmt.Println("The main goroutine receives the done signal and continues to execute.")
+}
+
+// In most cases, the termination of the main program implicitly ends all goroutines.
+// However, in long-running services, we may need to proactively stop a goroutine.
+func useChanStopGoroutine() {
+	stop := make(chan struct{})
+
+	go func() {
+		i := 0
+		for {
+			select {
+			case <-stop:
+				fmt.Println("Got the stop signal, stop...")
+			default:
+				fmt.Printf("Start Loop%d\n", i)
+				// time.Sleep(time.Microsecond)
+				i += 1
+			}
+		}
+	}()
+
+	stop <- struct{}{} // Send stop signal
+}
+
+func useContentStopGoroutine() {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("Got the stop signal. Shutting down...")
+				return
+			default:
+				// execute normal operation
+			}
+		}
+	}(ctx)
+
+	// when you want to stop the goroutine
+	cancel()
 }
